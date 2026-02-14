@@ -22,6 +22,21 @@ function stripHtml(html = "") {
     .slice(0, 800);
 }
 
+async function getOgImage(url) {
+  try {
+    const html = await fetch(url, {
+      headers: { "User-Agent": "velog-notion-sync" },
+    }).then((r) => r.text());
+
+    const m = html.match(
+      /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i
+    );
+    return m?.[1] || null;
+  } catch {
+    return null;
+  }
+}
+
 async function existsByLink(link) {
   const res = await notion.databases.query({
     database_id: DATABASE_ID,
@@ -34,15 +49,19 @@ async function existsByLink(link) {
   return res.results.length > 0;
 }
 
-async function createItem({ title, link, publishedISO, summary }) {
+async function createItem({ title, link, publishedISO, summary, thumbnail }) {
+  const properties = {
+    Title: { title: [{ text: { content: title } }] },
+    Link: { url: link },
+    Published: { date: { start: publishedISO } },
+    Summary: { rich_text: [{ text: { content: summary } }] },
+  };
+
+  if (thumbnail) properties.Thumbnail = { url: thumbnail };
+
   await notion.pages.create({
     parent: { database_id: DATABASE_ID },
-    properties: {
-      Title: { title: [{ text: { content: title } }] },
-      Link: { url: link },
-      Published: { date: { start: publishedISO } },
-      Summary: { rich_text: [{ text: { content: summary } }] },
-    },
+    properties,
   });
 }
 
@@ -72,7 +91,9 @@ async function main() {
       continue;
     }
 
-    await createItem({ title, link, publishedISO, summary });
+    const thumbnail = await getOgImage(link);
+
+    await createItem({ title, link, publishedISO, summary, thumbnail });
     console.log(`added: ${title}`);
   }
 

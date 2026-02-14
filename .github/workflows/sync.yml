@@ -30,4 +30,5 @@ jobs:
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           DATABASE_ID: ${{ secrets.DATABASE_ID }}
+          BACKFILL_THUMBNAILS: ${{ vars.BACKFILL_THUMBNAILS }}
         run: npm run sync

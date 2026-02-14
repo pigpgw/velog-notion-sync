@@ -49,6 +49,15 @@ async function existsByLink(link) {
   return res.results.length > 0;
 }
 
+function getUrlProp(page, name) {
+  return page?.properties?.[name]?.url ?? null;
+}
+
+function getTitleProp(page, name) {
+  const t = page?.properties?.[name]?.title ?? [];
+  return t.map((x) => x?.plain_text || "").join("");
+}
+
 async function createItem({ title, link, publishedISO, summary, thumbnail }) {
   const properties = {
     Title: { title: [{ text: { content: title } }] },
@@ -63,6 +72,50 @@ async function createItem({ title, link, publishedISO, summary, thumbnail }) {
     parent: { database_id: DATABASE_ID },
     properties,
   });
+}
+
+async function backfillThumbnails() {
+  let cursor = undefined;
+  let total = 0;
+
+  while (true) {
+    const res = await notion.databases.query({
+      database_id: DATABASE_ID,
+      filter: {
+        property: "Thumbnail",
+        url: { is_empty: true },
+      },
+      start_cursor: cursor,
+      page_size: 50,
+    });
+
+    for (const page of res.results) {
+      const link = getUrlProp(page, "Link");
+      if (!link) continue;
+
+      const title = getTitleProp(page, "Title") || link;
+      const thumbnail = await getOgImage(link);
+      if (!thumbnail) {
+        console.log(`no thumb: ${title}`);
+        continue;
+      }
+
+      await notion.pages.update({
+        page_id: page.id,
+        properties: {
+          Thumbnail: { url: thumbnail },
+        },
+      });
+
+      total += 1;
+      console.log(`thumb added: ${title}`);
+    }
+
+    if (!res.has_more) break;
+    cursor = res.next_cursor;
+  }
+
+  console.log(`backfill done: ${total}`);
 }
 
 async function main() {
@@ -95,6 +148,10 @@ async function main() {
 
     await createItem({ title, link, publishedISO, summary, thumbnail });
     console.log(`added: ${title}`);
+  }
+
+  if (process.env.BACKFILL_THUMBNAILS === "1") {
+    await backfillThumbnails();
   }
 
   console.log("done");

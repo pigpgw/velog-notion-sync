@@ -27,6 +27,13 @@ function getFirstImageFromHtml(html = "") {
   return m?.[1] || null;
 }
 
+function normalizeImageUrl(url) {
+  if (!url) return null;
+  // Notion sometimes can't render hotlinked images; use a public proxy.
+  const stripped = url.replace(/^https?:\/\//i, "");
+  return `https://images.weserv.nl/?url=${encodeURIComponent(stripped)}`;
+}
+
 async function getThumbnailFromUrl(url) {
   try {
     const html = await fetch(url, {
@@ -106,7 +113,8 @@ async function backfillThumbnails() {
       if (!link) continue;
 
       const title = getTitleProp(page, "Title") || link;
-      const thumbnail = await getThumbnailFromUrl(link);
+      const rawThumb = await getThumbnailFromUrl(link);
+      const thumbnail = normalizeImageUrl(rawThumb);
       if (!thumbnail) {
         console.log(`no thumb: ${title}`);
         continue;
@@ -162,7 +170,8 @@ async function main() {
       continue;
     }
 
-    const thumbnail = getFirstImageFromHtml(contentHtml) || (await getThumbnailFromUrl(link));
+    const rawThumb = getFirstImageFromHtml(contentHtml) || (await getThumbnailFromUrl(link));
+    const thumbnail = normalizeImageUrl(rawThumb);
 
     await createItem({ title, link, publishedISO, summary, thumbnail });
     console.log(`added: ${title}`);

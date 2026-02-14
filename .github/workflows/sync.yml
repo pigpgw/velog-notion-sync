@@ -17,6 +17,12 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Debug workspace
+        run: |
+          pwd
+          ls -la
+          node -e "console.log('lockfile:', require('fs').existsSync('package-lock.json'))"
+
       - name: Install deps
         run: npm install
 

@@ -22,16 +22,22 @@ function stripHtml(html = "") {
     .slice(0, 800);
 }
 
-async function getOgImage(url) {
+function getFirstImageFromHtml(html = "") {
+  const m = html.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
+  return m?.[1] || null;
+}
+
+async function getThumbnailFromUrl(url) {
   try {
     const html = await fetch(url, {
       headers: { "User-Agent": "velog-notion-sync" },
     }).then((r) => r.text());
 
-    const m = html.match(
+    const og = html.match(
       /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["'][^>]*>/i
-    );
-    return m?.[1] || null;
+    )?.[1];
+
+    return og || getFirstImageFromHtml(html);
   } catch {
     return null;
   }
@@ -100,7 +106,7 @@ async function backfillThumbnails() {
       if (!link) continue;
 
       const title = getTitleProp(page, "Title") || link;
-      const thumbnail = await getOgImage(link);
+      const thumbnail = await getThumbnailFromUrl(link);
       if (!thumbnail) {
         console.log(`no thumb: ${title}`);
         continue;
@@ -147,7 +153,8 @@ async function main() {
     if (!link || !pubDate) continue;
 
     const publishedISO = new Date(pubDate).toISOString();
-    const summary = stripHtml(it["content:encoded"] || it.description || "");
+    const contentHtml = it["content:encoded"] || it.description || "";
+    const summary = stripHtml(contentHtml);
 
     const exists = await existsByLink(link);
     if (exists) {
@@ -155,7 +162,7 @@ async function main() {
       continue;
     }
 
-    const thumbnail = await getOgImage(link);
+    const thumbnail = getFirstImageFromHtml(contentHtml) || (await getThumbnailFromUrl(link));
 
     await createItem({ title, link, publishedISO, summary, thumbnail });
     console.log(`added: ${title}`);

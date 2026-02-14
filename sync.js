@@ -125,6 +125,10 @@ async function backfillThumbnails() {
   console.log(`backfill done: ${total}`);
 }
 
+function isTruthy(v) {
+  return ["1", "true", "yes", "y", "on"].includes(String(v).toLowerCase());
+}
+
 async function main() {
   const xml = await fetch(RSS_URL).then((r) => r.text());
   const data = parser.parse(xml);
@@ -157,7 +161,9 @@ async function main() {
     console.log(`added: ${title}`);
   }
 
-  if (process.env.BACKFILL_THUMBNAILS === "1") {
+  const backfill = process.env.BACKFILL_THUMBNAILS;
+  console.log(`BACKFILL_THUMBNAILS=${backfill ?? ""}`);
+  if (isTruthy(backfill)) {
     await backfillThumbnails();
   }
 

@@ -1,0 +1,13 @@
+{
+  "name": "velog-notion-sync",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "sync": "node sync.js"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "fast-xml-parser": "^4.5.3"
+  }
+}

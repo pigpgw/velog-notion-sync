@@ -68,10 +68,16 @@ async function createItem({ title, link, publishedISO, summary, thumbnail }) {
 
   if (thumbnail) properties.Thumbnail = { url: thumbnail };
 
-  await notion.pages.create({
+  const payload = {
     parent: { database_id: DATABASE_ID },
     properties,
-  });
+  };
+
+  if (thumbnail) {
+    payload.cover = { type: "external", external: { url: thumbnail } };
+  }
+
+  await notion.pages.create(payload);
 }
 
 async function backfillThumbnails() {
@@ -105,6 +111,7 @@ async function backfillThumbnails() {
         properties: {
           Thumbnail: { url: thumbnail },
         },
+        cover: { type: "external", external: { url: thumbnail } },
       });
 
       total += 1;
